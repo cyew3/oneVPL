@@ -701,6 +701,11 @@ mfxStatus CDecodingPipeline::Init(sInputParams* pParams) {
             if (m_diMode)
                 m_mfxVppVideoParams.vpp.Out.PicStruct = MFX_PICSTRUCT_PROGRESSIVE;
 
+            if (pParams->ScalingMode) {
+                auto par         = m_mfxVppVideoParams.AddExtBuffer<mfxExtVPPScaling>();
+                par->ScalingMode = pParams->ScalingMode;
+            }
+
             sts = m_pmfxVPP->Init(&m_mfxVppVideoParams);
             if (MFX_WRN_PARTIAL_ACCELERATION == sts) {
                 msdk_printf(MSDK_STRING("WARNING: partial acceleration\n"));
@@ -1633,6 +1638,14 @@ mfxStatus CDecodingPipeline::ResetDecoder(sInputParams* pParams) {
     MSDK_CHECK_STATUS(sts, "m_pmfxDEC->Init failed");
 
     if (m_pmfxVPP) {
+        if (m_diMode)
+            m_mfxVppVideoParams.vpp.Out.PicStruct = MFX_PICSTRUCT_PROGRESSIVE;
+
+        if (pParams->ScalingMode) {
+            auto par         = m_mfxVppVideoParams.AddExtBuffer<mfxExtVPPScaling>();
+            par->ScalingMode = pParams->ScalingMode;
+        }
+
         sts = m_pmfxVPP->Init(&m_mfxVppVideoParams);
         if (MFX_WRN_PARTIAL_ACCELERATION == sts) {
             msdk_printf(MSDK_STRING("WARNING: partial acceleration\n"));
