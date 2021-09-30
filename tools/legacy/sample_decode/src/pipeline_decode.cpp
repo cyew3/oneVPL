@@ -1009,7 +1009,7 @@ mfxStatus CDecodingPipeline::InitMfxParams(sInputParams* pParams) {
 
 #if MFX_VERSION >= 1022
     /* Lets make final decision how to use VPP...*/
-    // if (!m_bVppIsUsed) {
+    if (!m_bVppIsUsed) {
         if ((m_mfxVideoParams.mfx.FrameInfo.CropW != pParams->Width && pParams->Width) ||
             (m_mfxVideoParams.mfx.FrameInfo.CropH != pParams->Height && pParams->Height) ||
             (pParams->nDecoderPostProcessing && pParams->videoType == MFX_CODEC_AVC) ||
@@ -1040,8 +1040,7 @@ mfxStatus CDecodingPipeline::InitMfxParams(sInputParams* pParams) {
                     pParams->Height = m_mfxVideoParams.mfx.FrameInfo.CropH;
                 }
 
-                // m_bVppIsUsed           = false;
-                m_bVppIsUsed           = true;
+                m_bVppIsUsed           = false;
                 auto decPostProcessing = m_mfxVideoParams.AddExtBuffer<mfxExtDecVideoProcessing>();
                 MSDK_CHECK_POINTER(decPostProcessing, MFX_ERR_MEMORY_ALLOC);
 
@@ -1068,17 +1067,17 @@ mfxStatus CDecodingPipeline::InitMfxParams(sInputParams* pParams) {
                 msdk_printf(MSDK_STRING("Decoder's post-processing is used for resizing\n"));
             }
             /* POSTPROC_FORCE */
-            // if (MODE_DECODER_POSTPROC_FORCE == pParams->nDecoderPostProcessing && m_bVppIsUsed) {
-            //     /* it is impossible to use decoder's post-processing */
-            //     msdk_printf(MSDK_STRING(
-            //         "ERROR: decoder postprocessing (-dec_postproc forced) cannot be used for this stream!\n"));
-            //     return MFX_ERR_UNSUPPORTED;
-            // }
-            // if ((m_bVppIsUsed) && (MODE_DECODER_POSTPROC_AUTO == pParams->nDecoderPostProcessing))
-            //     msdk_printf(MSDK_STRING(
-            //         "Decoder post-processing is unsupported for this stream, VPP is used\n"));
+            if (MODE_DECODER_POSTPROC_FORCE == pParams->nDecoderPostProcessing && m_bVppIsUsed) {
+                /* it is impossible to use decoder's post-processing */
+                msdk_printf(MSDK_STRING(
+                    "ERROR: decoder postprocessing (-dec_postproc forced) cannot be used for this stream!\n"));
+                return MFX_ERR_UNSUPPORTED;
+            }
+            if ((m_bVppIsUsed) && (MODE_DECODER_POSTPROC_AUTO == pParams->nDecoderPostProcessing))
+                msdk_printf(MSDK_STRING(
+                    "Decoder post-processing is unsupported for this stream, VPP is used\n"));
         }
-    // }
+    }
 #endif //MFX_VERSION >= 1022
 
 #if (MFX_VERSION < 2000)
@@ -1153,13 +1152,6 @@ mfxStatus CDecodingPipeline::InitVppParams() {
     MSDK_MEMCPY_VAR(m_mfxVppVideoParams.vpp.In,
                     &m_mfxVideoParams.mfx.FrameInfo,
                     sizeof(mfxFrameInfo));
-
-    m_mfxVppVideoParams.vpp.In.CropW = 3480;
-    m_mfxVppVideoParams.vpp.In.Width = MSDK_ALIGN16(3480);
-    m_mfxVppVideoParams.vpp.In.CropH = 2160;
-    m_mfxVppVideoParams.vpp.In.Height = 2160;
-    m_mfxVppVideoParams.vpp.In.FourCC = MFX_FOURCC_RGB4;
-
     MSDK_MEMCPY_VAR(m_mfxVppVideoParams.vpp.Out, &m_mfxVppVideoParams.vpp.In, sizeof(mfxFrameInfo));
 
     if (m_fourcc) {
@@ -1167,20 +1159,13 @@ mfxStatus CDecodingPipeline::InitVppParams() {
     }
 
     if (m_vppOutWidth && m_vppOutHeight) {
-        // m_mfxVppVideoParams.vpp.Out.CropW = m_vppOutWidth;
-        // m_mfxVppVideoParams.vpp.Out.Width = MSDK_ALIGN16(m_vppOutWidth);
-        // m_mfxVppVideoParams.vpp.Out.CropH = m_vppOutHeight;
-        // m_mfxVppVideoParams.vpp.Out.Height =
-        //     (MFX_PICSTRUCT_PROGRESSIVE == m_mfxVppVideoParams.vpp.Out.PicStruct)
-        //         ? MSDK_ALIGN16(m_vppOutHeight)
-        //         : MSDK_ALIGN32(m_vppOutHeight);
-        m_mfxVppVideoParams.vpp.Out.CropW = 304;
-        m_mfxVppVideoParams.vpp.Out.Width = MSDK_ALIGN16(304);
-        m_mfxVppVideoParams.vpp.Out.CropH = 304;
+        m_mfxVppVideoParams.vpp.Out.CropW = m_vppOutWidth;
+        m_mfxVppVideoParams.vpp.Out.Width = MSDK_ALIGN16(m_vppOutWidth);
+        m_mfxVppVideoParams.vpp.Out.CropH = m_vppOutHeight;
         m_mfxVppVideoParams.vpp.Out.Height =
             (MFX_PICSTRUCT_PROGRESSIVE == m_mfxVppVideoParams.vpp.Out.PicStruct)
-                ? MSDK_ALIGN16(304)
-                : MSDK_ALIGN32(304);
+                ? MSDK_ALIGN16(m_vppOutHeight)
+                : MSDK_ALIGN32(m_vppOutHeight);
 #if (MFX_VERSION >= 2000)
         if (m_impl & MFX_IMPL_SOFTWARE) { // for vpl
             m_mfxVppVideoParams.vpp.Out.Height = m_vppOutHeight;
